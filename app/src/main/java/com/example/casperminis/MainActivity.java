@@ -147,7 +147,12 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick() {
                     super.onClick();
-                    Toast.makeText(MainActivity.this, "Tap gesture detected", Toast.LENGTH_SHORT).show();
+                    exoPlayer.setVolume(exoPlayer.getVolume()>0?0:1);
+                    if (exoPlayer.getVolume()>0)
+                        Toast.makeText(MainActivity.this, "Unmuted", Toast.LENGTH_SHORT).show();
+                    else
+                        Toast.makeText(MainActivity.this, "Muted", Toast.LENGTH_SHORT).show();
+
                 }
 
                 @Override
@@ -156,7 +161,6 @@ public class MainActivity extends AppCompatActivity {
                     exoPlayer.release();
                     playVideo(vidArray, i+1);
                     setContent(vidArray, i+1);
-                    Toast.makeText(MainActivity.this, "Swipe Up gesture detected", Toast.LENGTH_SHORT).show();
                 }
                 @Override
                 public void onSwipeDown() {
@@ -168,7 +172,6 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         Toast.makeText(MainActivity.this, "You are at the very beginning. Swipe up to start your journey", Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(MainActivity.this, "Swipe Down gesture detected", Toast.LENGTH_SHORT).show();
                 }
             });
         } catch (Exception e) {
