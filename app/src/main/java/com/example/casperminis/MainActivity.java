@@ -2,20 +2,19 @@ package com.example.casperminis;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -25,6 +24,10 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.MediaItem;
+import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.ui.StyledPlayerView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,12 +35,19 @@ import org.json.JSONObject;
 
 
 public class MainActivity extends AppCompatActivity {
-
+    private ExoPlayer exoPlayer;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getData(0);
+    }
+    @Override
+    protected void onStop() {
+        super.onStop();
+        exoPlayer.setPlayWhenReady(false);
+//        exoPlayer.release();
+//        exoPlayer = null;
     }
     private void getData(int index) {
         final RequestQueue requestQueue = Volley.newRequestQueue(this);
@@ -115,47 +125,52 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("ClickableViewAccessibility")
     private void playVideo(JSONArray vidArray, int i) {
         try {
+            ConstraintLayout layout = findViewById(R.id.layout);
+            StyledPlayerView styledPlayerView = findViewById(R.id.videoView);
             JSONObject videoJson = vidArray.getJSONObject(i);
             final ProgressBar progressBar = findViewById(R.id.progressBar);
             progressBar.setVisibility(View.VISIBLE);
             String url = videoJson.getString("video");
-            final VideoView videoView = findViewById(R.id.videoView);
-            final TextView handle = findViewById(R.id.handle);
-            if (i == 0) videoView.setVideoPath(url);
-            if (isNetworkAvailable()) videoView.start();
+            exoPlayer = new ExoPlayer.Builder(MainActivity.this).build();
+            styledPlayerView.setPlayer(exoPlayer);
+            MediaItem mediaItem = MediaItem.fromUri(url);
+            exoPlayer.setMediaItem(mediaItem);
+            if(isNetworkAvailable()) {exoPlayer.prepare();
+                final ImageView reload = findViewById(R.id.reload);
+                reload.setVisibility(View.GONE);
+                progressBar.setVisibility(View.GONE);
+                exoPlayer.setPlayWhenReady(true);
+                exoPlayer.setRepeatMode(Player.REPEAT_MODE_ONE);
+            }
             else displayErrorWidgets();
-            videoView.setVideoPath(vidArray.getJSONObject(i+1).getString("video"));
-            videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            layout.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 @Override
-                public void onPrepared(MediaPlayer mp) {
-                    progressBar.setVisibility(View.GONE);
-                    final ImageView reload = findViewById(R.id.reload);
-                    reload.setVisibility(View.GONE);
-                    mp.setLooping(true);
+                public void onClick() {
+                    super.onClick();
+                    Toast.makeText(MainActivity.this, "Tap gesture detected", Toast.LENGTH_SHORT).show();
                 }
-            });
-//            videoView.set
-            videoView.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
-                public void onSwipeTop() {
-                    videoView.suspend();
+
+                @Override
+                public void onSwipeUp() {
+                    super.onSwipeUp();
+                    exoPlayer.release();
                     playVideo(vidArray, i+1);
                     setContent(vidArray, i+1);
+                    Toast.makeText(MainActivity.this, "Swipe Up gesture detected", Toast.LENGTH_SHORT).show();
                 }
-                public void onSwipeBottom() {
+                @Override
+                public void onSwipeDown() {
+                    super.onSwipeDown();
                     if (i != 0) {
-                        videoView.suspend();
+                        exoPlayer.release();
                         playVideo(vidArray, i-1);
                         setContent(vidArray, i-1);
                     } else {
                         Toast.makeText(MainActivity.this, "You are at the very beginning. Swipe up to start your journey", Toast.LENGTH_SHORT).show();
                     }
+                    Toast.makeText(MainActivity.this, "Swipe Down gesture detected", Toast.LENGTH_SHORT).show();
                 }
-
             });
-
-            if (!videoView.isPlaying()) {
-                videoView.start();
-            }
         } catch (Exception e) {
             displayErrorWidgets();
         }
