@@ -7,6 +7,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -22,6 +23,8 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -90,7 +93,12 @@ public class MainActivity extends AppCompatActivity {
         try {
             JSONObject videoJson = vidArray.getJSONObject(i);
             final JSONObject userInfo = videoJson.getJSONObject("user_info");
-            dp.setImageURI(Uri.parse("http://res.cloudinary.com/cinespace/image/upload/v1693680378/samples/dessert-on-a-plate.jpg"));
+            String imageUrl = userInfo.getString("profile_pic");
+            Log.d("Image URL", "setContent: "+imageUrl);
+            Glide.with(this)
+                    .load(imageUrl)
+                    .apply(new RequestOptions())
+                    .into(dp);
             channel.setText(String.format("%s %s", userInfo.getString("first_name"), userInfo.getString("last_name")));
             caption.setText(videoJson.getString("description"));
             handle.setText(userInfo.getString("username"));
