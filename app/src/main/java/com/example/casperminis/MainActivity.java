@@ -6,7 +6,6 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -36,23 +35,21 @@ import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer exoPlayer;
+    private float volume = 1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        getData(0);
+        getData();
     }
     @Override
     protected void onStop() {
         super.onStop();
         exoPlayer.setPlayWhenReady(false);
-//        exoPlayer.release();
-//        exoPlayer = null;
     }
-    private void getData(int index) {
+    private void getData() {
         final RequestQueue requestQueue = Volley.newRequestQueue(this);
         final String url = "http://fatema.takatakind.com/app_api/index.php?p=showAllVideos";
-        final String[] data = new String[10];
         final StringRequest mStringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
@@ -60,8 +57,8 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     res = new JSONObject(response);
                     JSONArray vidArray = res.getJSONArray("msg");
-                    playVideo(vidArray, index);
-                    setContent(vidArray, index);
+                    playVideo(vidArray, 0);
+                    setContent(vidArray, 0);
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
@@ -86,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View view) {
-                getData(0);
+                getData();
                 reload.setVisibility(View.GONE);
             }
         });
@@ -129,18 +126,31 @@ public class MainActivity extends AppCompatActivity {
             StyledPlayerView styledPlayerView = findViewById(R.id.videoView);
             JSONObject videoJson = vidArray.getJSONObject(i);
             final ProgressBar progressBar = findViewById(R.id.progressBar);
-            progressBar.setVisibility(View.VISIBLE);
             String url = videoJson.getString("video");
             exoPlayer = new ExoPlayer.Builder(MainActivity.this).build();
             styledPlayerView.setPlayer(exoPlayer);
-            MediaItem mediaItem = MediaItem.fromUri(url);
-            exoPlayer.setMediaItem(mediaItem);
-            if(isNetworkAvailable()) {exoPlayer.prepare();
-                final ImageView reload = findViewById(R.id.reload);
-                reload.setVisibility(View.GONE);
-                progressBar.setVisibility(View.GONE);
+            exoPlayer.addListener(new ExoPlayer.Listener() {
+                @Override
+                public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+                    if (playbackState == ExoPlayer.STATE_BUFFERING){
+                        progressBar.setVisibility(View.VISIBLE);
+                    } else {
+                        progressBar.setVisibility(View.INVISIBLE);
+                    }
+                }
+            });
+            exoPlayer.setVolume(volume);
+            if(isNetworkAvailable()) {
+                if (i==0 ) {
+                    MediaItem mediaItem = MediaItem.fromUri(url);
+                    exoPlayer.setMediaItem(mediaItem);
+                    exoPlayer.prepare();
+                }
                 exoPlayer.setPlayWhenReady(true);
                 exoPlayer.setRepeatMode(Player.REPEAT_MODE_ONE);
+                MediaItem mediaItem = MediaItem.fromUri(vidArray.getJSONObject(i+1).getString("video"));
+                exoPlayer.setMediaItem(mediaItem);
+                exoPlayer.prepare();
             }
             else displayErrorWidgets();
             layout.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
@@ -148,13 +158,13 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick() {
                     super.onClick();
                     exoPlayer.setVolume(exoPlayer.getVolume()>0?0:1);
-                    if (exoPlayer.getVolume()>0)
-                        Toast.makeText(MainActivity.this, "Unmuted", Toast.LENGTH_SHORT).show();
+                    volume = exoPlayer.getVolume();
+                    if (volume >0)
+                        Toast.makeText(MainActivity.this, "Un-muted", Toast.LENGTH_SHORT).show();
                     else
                         Toast.makeText(MainActivity.this, "Muted", Toast.LENGTH_SHORT).show();
 
                 }
-
                 @Override
                 public void onSwipeUp() {
                     super.onSwipeUp();
@@ -174,6 +184,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
+            final ImageView reload = findViewById(R.id.reload);
+            reload.setVisibility(View.GONE);
         } catch (Exception e) {
             displayErrorWidgets();
         }
