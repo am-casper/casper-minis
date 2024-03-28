@@ -12,3 +12,8 @@ Or, use the GitHub CLI
 gh repo clone am-casper/casper-minis
 ```
 And All Set! Just run the `build.gradle` file once to Sync all the dependencies used and finally Run the app on your emulator/ ADB.
+
+## Or if you wanna just try out the App, here's a better Way!
+
+Head over to <a href="https://github.com/am-casper/casper-minis/blob/main/app/release/app-release.apk"> This Url</a> and Download the Raw file in your Mobile Phone. Install the app and you are good to go:)
+
