@@ -14,6 +14,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import com.google.android.exoplayer2.database.StandaloneDatabaseProvider;
+
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -26,15 +28,32 @@ import com.bumptech.glide.request.RequestOptions;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
+import com.google.android.exoplayer2.source.hls.HlsMediaSource;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
+import com.google.android.exoplayer2.upstream.DefaultDataSource;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
+import com.google.android.exoplayer2.upstream.FileDataSource;
+import com.google.android.exoplayer2.upstream.cache.Cache;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSink;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
+import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer exoPlayer;
+    private DefaultTrackSelector trackSelector = null;
+    private Cache downloadCache = null;
+    private String DOWNLOAD_CONTENT_DIRECTORY = "downloads";
     private float volume = 1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,6 +141,8 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("ClickableViewAccessibility")
     private void playVideo(JSONArray vidArray, int i) {
         try {
+
+
             ConstraintLayout layout = findViewById(R.id.layout);
             StyledPlayerView styledPlayerView = findViewById(R.id.videoView);
             JSONObject videoJson = vidArray.getJSONObject(i);
@@ -141,18 +162,17 @@ public class MainActivity extends AppCompatActivity {
             });
             exoPlayer.setVolume(volume);
             if(isNetworkAvailable()) {
-                if (i==0 ) {
                     MediaItem mediaItem = MediaItem.fromUri(url);
-                    exoPlayer.setMediaItem(mediaItem);
+                    ProgressiveMediaSource mediaSource = new ProgressiveMediaSource.Factory(buildCacheDataSourceFactory()).createMediaSource(mediaItem);
+                    exoPlayer.setMediaSource(mediaSource);
                     exoPlayer.prepare();
-                }
                 exoPlayer.setPlayWhenReady(true);
                 exoPlayer.setRepeatMode(Player.REPEAT_MODE_ONE);
-                MediaItem mediaItem = MediaItem.fromUri(vidArray.getJSONObject(i+1).getString("video"));
-                exoPlayer.setMediaItem(mediaItem);
-                exoPlayer.prepare();
             }
-            else displayErrorWidgets();
+            else {
+                displayErrorWidgets();
+                return;
+            }
             layout.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
                 @Override
                 public void onClick() {
@@ -191,6 +211,34 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
+    private CacheDataSource.Factory buildCacheDataSourceFactory() {
+        System.out.print("hmmmmm");
+        Cache cache = getDownloadCache();
+        CacheDataSink.Factory cacheSink = new CacheDataSink.Factory().setCache(cache);
+        DefaultDataSource.Factory upstreamFactory = new DefaultDataSource.Factory(this, new DefaultHttpDataSource.Factory());
+        return new CacheDataSource.Factory()
+                .setCache(cache)
+                .setCacheWriteDataSinkFactory(cacheSink)
+                .setCacheReadDataSourceFactory(new FileDataSource.Factory())
+                .setUpstreamDataSourceFactory(upstreamFactory)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
+    }
+
+    private Cache getDownloadCache() {
+        if (downloadCache == null) {
+            File downloadContentDirectory = new File(
+                    getExternalFilesDir(null),
+                    DOWNLOAD_CONTENT_DIRECTORY
+            );
+            downloadCache =
+                    new SimpleCache(downloadContentDirectory,
+                            new NoOpCacheEvictor(),
+                            new StandaloneDatabaseProvider(this));
+        }
+        return downloadCache;
+    }
+
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
